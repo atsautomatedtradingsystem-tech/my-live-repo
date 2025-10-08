@@ -1,13 +1,15 @@
+# minimal python deps (оновити за потребою під твій live.py)
 dash==3.2.0
 dash-bootstrap-components==2.0.4
 plotly==6.3.1
 kaleido==1.1.0
 pandas==2.3.3
-typer==0.19.2
-ccxt==4.5.7
-requests
-Pillow
-numpy
-scikit-learn
-lightgbm
-# torch може вимагати окремий інсталятор для CPU / CUDA — див. інструкцію нижче
+numpy==2.3.3
+Pillow==11.3.0
+requests==2.32.5
+tenacity==9.1.2
+torch==2.8.0+cpu      # якщо потрібен GPU / cpu модель
+scikit-learn==1.7.2  # якщо live.py використовує lightgbm sklearn API
+lightgbm             # optional (може вимагати інструкцій на встановлення)
+ccxt
+typer
