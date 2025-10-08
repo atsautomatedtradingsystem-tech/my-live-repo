@@ -8,5 +8,6 @@ Pillow==11.3.0
 requests==2.32.5
 tenacity==9.1.2
 scikit-learn==1.7.2
-lightgbm==4.0.0   # якщо live.py використовує lightgbm
-# NOTE: torch (if needed) install separately (see README)
+lightgbm==4.0.0
+typer==0.19.2
+ccxt==4.5.7
