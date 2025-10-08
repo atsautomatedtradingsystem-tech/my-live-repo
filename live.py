@@ -4041,3 +4041,33 @@ def execute_close_trade(sym, wallet, tr, exit_price, df_for_feat=None, reason=No
     except Exception:
         pass
     return res
+
+# ---------- snapshot endpoint ----------
+try:
+    from flask import send_file, make_response
+    import io, time
+    from PIL import Image, ImageDraw, ImageFont
+    @app.route("/snapshot.png")
+    def snapshot_png():
+        # якщо у тебе є функція get_snapshot_image() — використовуй її
+        try:
+            img = None
+            if "get_snapshot_image" in globals():
+                img = get_snapshot_image()
+            if img is None:
+                # fallback: создать простое изображение с timestamp
+                img = Image.new("RGB", (640,360), (30,30,30))
+                d = ImageDraw.Draw(img)
+                d.text((10,10), time.strftime("%Y-%m-%d %H:%M:%S"), fill=(255,255,255))
+            buf = io.BytesIO()
+            img.save(buf, "PNG")
+            buf.seek(0)
+            return send_file(buf, mimetype="image/png")
+        except Exception as e:
+            return make_response(str(e), 500)
+except Exception:
+    pass
+
+
+
+
