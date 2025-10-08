@@ -4043,4 +4043,31 @@ def execute_close_trade(sym, wallet, tr, exit_price, df_for_feat=None, reason=No
     return res
 
 
+# --- snapshot endpoint (app має бути Flask/Dash app named "app" або змінити під вашу змінну) ---
+try:
+    from flask import send_file, Response
+    import io, time
+    from PIL import Image, ImageDraw, ImageFont
+
+    @app.route("/snapshot.png")
+    def snapshot_png():
+        try:
+            # якщо у тебе є функція get_snapshot_image() яка повертає PIL Image -> використай її
+            if 'get_snapshot_image' in globals():
+                img = get_snapshot_image()
+            else:
+                img = Image.new("RGB", (640,360), (40,40,40))
+                d = ImageDraw.Draw(img)
+                d.text((10,10), f"Snapshot {time.strftime('%Y-%m-%d %H:%M:%S')}", fill=(220,220,220))
+            buf = io.BytesIO()
+            img.save(buf, format="PNG")
+            buf.seek(0)
+            return send_file(buf, mimetype="image/png")
+        except Exception as e:
+            # fallback: return 500 with text
+            return Response(f"error: {e}", status=500, mimetype="text/plain")
+except Exception:
+    pass
+
+
 
