@@ -1,29 +1,50 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# 1) віртуальне оточення
-python3 -m venv .venv
-. .venv/bin/activate
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+cd "$ROOT"
 
-# 2) оновити pip
-python -m pip install --upgrade pip setuptools wheel
+# load .env if present
+if [ -f .env ]; then
+  set -a
+  source .env
+  set +a
+fi
 
-# 3) встановити звичайні requirements
-pip install -r requirements.txt
-
-# 4) якщо потрібно torch (CPU) – інсталюємо окремо (не завжди у requirements)
-python -m pip install "torch" --index-url https://download.pytorch.org/whl/cpu || true
-
-# 5) системні перевірки
-which ffmpeg >/dev/null 2>&1 || echo "WARNING: ffmpeg not found. Install system package."
-
-# 6) створити директорії логів
+# create logs dir
 mkdir -p logs
 
-# 7) виконай live.py у фоні (лог в logs/live_stdout.log)
-nohup .venv/bin/python3 live.py > logs/live_stdout.log 2>&1 &
+# create venv if missing
+if [ ! -d .venv ]; then
+  python3 -m venv .venv
+fi
+. .venv/bin/activate
 
-# 8) почекай трохи, потім запусти stream (лог в logs/stream_run.log)
-sleep 3
-nohup .venv/bin/python3 stream_frames.py > logs/stream_run.log 2>&1 &
-echo "Started live.py and stream_frames.py; check logs/ directory"
+# install requirements
+pip install --upgrade pip setuptools wheel
+pip install -r requirements.txt || true
+
+# ensure ffmpeg exists (attempt)
+if ! command -v ffmpeg >/dev/null 2>&1; then
+  echo "ffmpeg not found. Trying to apt-get install (may fail in Codespaces without sudo)."
+  if command -v sudo >/dev/null 2>&1; then
+    sudo apt-get update && sudo apt-get install -y ffmpeg || true
+  fi
+fi
+
+# start live.py (Dash app) in background if not running
+if pgrep -f "python.*live.py" >/dev/null 2>&1; then
+  echo "live.py already running"
+else
+  nohup python3 live.py > logs/live_stdout.log 2>&1 &
+  sleep 2
+fi
+
+# start stream_frames.py in background
+if pgrep -f "python.*stream_frames.py" >/dev/null 2>&1; then
+  echo "stream_frames.py already running"
+else
+  nohup python3 stream_frames.py > logs/stream_run.log 2>&1 &
+fi
+
+echo "Started (or already running). Check logs/live_stdout.log and logs/stream_run.log"
