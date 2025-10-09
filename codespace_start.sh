@@ -1,60 +1,41 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# load .env safely (if exists)
+# load .env if exists
 if [ -f .env ]; then
-  set -a
   # shellcheck disable=SC1091
-  . ./.env
-  set +a
+  export $(grep -v '^#' .env | xargs)
 fi
 
-# create logs
+# create logs dir
 mkdir -p logs
 
-# create venv
-if [ ! -d ".venv" ]; then
+# create venv if missing
+if [ ! -d .venv ]; then
   python3 -m venv .venv
 fi
-# activate
-# shellcheck disable=SC1091
-. .venv/bin/activate
 
-# upgrade pip
+# activate and install deps
+source .venv/bin/activate
 python -m pip install --upgrade pip setuptools wheel
 
-# install system deps (may require sudo in codespace)
-if command -v sudo >/dev/null 2>&1; then
-  sudo apt update -y
-  sudo apt install -y ffmpeg
-else
-  echo "WARNING: cannot run apt (no sudo). Make sure ffmpeg is installed."
+# install base requirements (adjust files if you have different names)
+if [ -f requirements.txt ]; then
+  pip install -r requirements.txt || true
 fi
 
-# install python deps for stream component
-python -m pip install -r requirements-stream.txt
+# install stream-specific minimal libs
+pip install requests pillow numpy
 
-# install torch CPU wheel (if live.py needs torch) — optional
-# uncomment/modify for your python version when required:
-# python -m pip install "torch" --index-url https://download.pytorch.org/whl/cpu
+# (optional) install CPU torch wheel if live.py needs torch:
+# python -m pip install "torch" --index-url https://download.pytorch.org/whl/cpu || true
 
-# start live.py (if present)
-if [ -f live.py ]; then
-  echo "Starting live.py ..."
-  nohup python3 live.py > logs/live_stdout.log 2>&1 &
-  echo $! > logs/live.pid
-else
-  echo "live.py not found in repo root"
-fi
+# start live.py
+nohup ${LIVE_PY_CMD:-"python3 live.py"} > logs/live_stdout.log 2>&1 &
 
-# start stream_frames.py
-if [ -f stream_frames.py ]; then
-  echo "Starting stream_frames.py ..."
-  chmod +x stream_frames.py
-  nohup python3 stream_frames.py > logs/stream_run.log 2>&1 &
-  echo $! > logs/stream.pid
-else
-  echo "stream_frames.py not found"
-fi
+sleep 1
+
+# start streaming helper
+nohup python3 stream_frames.py > logs/stream_run.log 2>&1 &
 
 echo "Started (or already running). Check logs/live_stdout.log and logs/stream_run.log"
