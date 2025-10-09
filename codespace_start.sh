@@ -1,29 +1,36 @@
 #!/usr/bin/env bash
 set -euo pipefail
-# start everything from repo root
-# assumes .venv exists and .env present
+cd "$(dirname "$0")"
 
-# activate venv
-if [ -f .venv/bin/activate ]; then
-  . .venv/bin/activate
+# load .env if exists
+if [ -f .env ]; then
+  export $(grep -v '^#' .env | xargs)
 fi
 
-# load .env variables (naive)
-set -a
-[ -f .env ] && . .env
-set +a
+# create venv
+python3 -m venv .venv
+source .venv/bin/activate
 
+# upgrade pip and install requirements (torch separately if needed)
+python -m pip install --upgrade pip setuptools wheel
+python -m pip install -r requirements.txt || true
+
+# If live.py needs torch, install CPU wheel (Uncomment if needed)
+# python -m pip install "torch" --index-url https://download.pytorch.org/whl/cpu
+
+# ensure log dirs
 mkdir -p logs
 
-# start server (live.py)
-nohup ${LIVE_PY_CMD:-"python3 live.py"} > logs/live_stdout.log 2>&1 &
-echo "started live.py pid=$(pgrep -f live.py | tr '\n' ' ')"
+# start live.py (dash) in background with nohup
+nohup ${LIVE_PY_CMD} > logs/live_stdout.log 2>&1 & echo $! > logs/live.pid
 
-# small wait
-sleep 2
+# wait short time for server to come up
+sleep 3
 
-# start stream_frames.py
-nohup python3 stream_frames.py > logs/stream_run.log 2>&1 &
-echo "started stream_frames.py pid=$(pgrep -f stream_frames.py | tr '\n' ' ')"
+# check snapshot endpoint
+curl -sS ${SERVER_URL:-http://127.0.0.1:8050}/snapshot.png -o /tmp/test_snapshot.png || true
 
-echo "logs: logs/live_stdout.log logs/stream_run.log"
+# start streaming process
+nohup python3 stream_frames.py > logs/stream_run.log 2>&1 & echo $! > logs/stream.pid
+
+echo "Started (or already running). Check logs/live_stdout.log and logs/stream_run.log"
