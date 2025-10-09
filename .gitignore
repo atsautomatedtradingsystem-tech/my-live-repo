@@ -1,5 +1,0 @@
-echo ".env
-*.log
-__pycache__/
-*.pyc
-" >> .gitignore
